@@ -1,0 +1,17 @@
+{
+  "name": "trmnl-nordpool",
+  "version": "1.0.0",
+  "description": "TRMNL e-ink plugin for Nord Pool day-ahead electricity prices",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test",
+    "deploy": "bash deploy.sh"
+  },
+  "keywords": ["trmnl", "nordpool", "electricity", "e-ink"],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
