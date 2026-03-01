@@ -3,7 +3,7 @@ set -euo pipefail
 
 FUNCTION_NAME="trmnl-nordpool"
 REGION="eu-west-1"
-RUNTIME="nodejs20.x"
+RUNTIME="nodejs24.x"
 ARCH="arm64"
 MEMORY=256
 TIMEOUT=15
