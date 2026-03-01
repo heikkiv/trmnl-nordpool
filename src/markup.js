@@ -1,9 +1,11 @@
+const { getTimeInZone } = require("./nordpool");
+
 const TRMNL_CSS = "https://trmnl.com/css/latest/plugins.css";
 const TRMNL_JS = "https://trmnl.com/js/latest/plugins.js";
 const PLUGIN_ICON = "https://trmnl.com/images/plugins/trmnl--render.svg";
 
-function chartScript(chartId, prices, height) {
-  const currentHour = new Date().getHours();
+function chartScript(chartId, prices, height, timezone = "Europe/Helsinki") {
+  const { hour: currentHour } = getTimeInZone(new Date(), timezone);
 
   const barColors = prices.map((p) =>
     p.hour === currentHour ? "#000000" : {
@@ -71,7 +73,25 @@ function statBlock(label, value, unit) {
       </div>`;
 }
 
-function renderFull(prices, stats) {
+function formatTimestamp(timezone = "Europe/Helsinki") {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat("fi-FI", {
+    timeZone: timezone,
+    day: "numeric",
+    month: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(now);
+  const day = parts.find((p) => p.type === "day").value;
+  const month = parts.find((p) => p.type === "month").value;
+  const hours = parts.find((p) => p.type === "hour").value;
+  const minutes = parts.find((p) => p.type === "minute").value;
+  return `${hours}:${minutes} ${day}.${month}.`;
+}
+
+function renderFull(prices, stats, timezone = "Europe/Helsinki") {
   const chartId = "chart-full";
   return `
 <div class="layout layout--col gap--space-between">
@@ -86,13 +106,13 @@ function renderFull(prices, stats) {
 <div class="title_bar">
   <img class="image" src="${PLUGIN_ICON}" />
   <span class="title">Nord Pool — FI</span>
-  <span class="instance">Day-Ahead Prices</span>
+  <span class="instance" style="position: absolute; right: 24px;">${formatTimestamp(timezone)}</span>
 </div>
 <script src="https://code.highcharts.com/highcharts.js"></script>
-${chartScript(chartId, prices, 300)}`;
+${chartScript(chartId, prices, 300, timezone)}`;
 }
 
-function renderHalfHorizontal(prices, stats) {
+function renderHalfHorizontal(prices, stats, timezone = "Europe/Helsinki") {
   const chartId = "chart-hh";
   return `
 <div class="layout layout--col gap--space-between">
@@ -107,12 +127,13 @@ function renderHalfHorizontal(prices, stats) {
 <div class="title_bar">
   <img class="image" src="${PLUGIN_ICON}" />
   <span class="title">Nord Pool — FI</span>
+  <span class="instance" style="position: absolute; right: 24px;">${formatTimestamp(timezone)}</span>
 </div>
 <script src="https://code.highcharts.com/highcharts.js"></script>
-${chartScript(chartId, prices, 140)}`;
+${chartScript(chartId, prices, 140, timezone)}`;
 }
 
-function renderHalfVertical(prices, stats) {
+function renderHalfVertical(prices, stats, timezone = "Europe/Helsinki") {
   const chartId = "chart-hv";
   return `
 <div class="layout layout--col gap--space-between">
@@ -125,12 +146,13 @@ function renderHalfVertical(prices, stats) {
 <div class="title_bar">
   <img class="image" src="${PLUGIN_ICON}" />
   <span class="title">Nord Pool FI</span>
+  <span class="instance" style="position: absolute; right: 24px;">${formatTimestamp(timezone)}</span>
 </div>
 <script src="https://code.highcharts.com/highcharts.js"></script>
-${chartScript(chartId, prices, 260)}`;
+${chartScript(chartId, prices, 260, timezone)}`;
 }
 
-function renderQuadrant(prices, stats) {
+function renderQuadrant(prices, stats, timezone = "Europe/Helsinki") {
   return `
 <div class="layout layout--col layout--center gap--space-between">
   <div class="grid grid--cols-2">
@@ -145,18 +167,22 @@ function renderQuadrant(prices, stats) {
 <div class="title_bar">
   <img class="image" src="${PLUGIN_ICON}" />
   <span class="title">NordPool FI</span>
+  <span class="instance" style="position: absolute; right: 24px;">${formatTimestamp(timezone)}</span>
 </div>`;
 }
 
 /**
  * Render all layout variants and return a TRMNL-compatible response object.
+ * @param {Array} prices - Hourly price data
+ * @param {Object} stats - Statistics object
+ * @param {string} timezone - IANA timezone name (e.g., "Europe/Helsinki")
  */
-function renderAllLayouts(prices, stats) {
+function renderAllLayouts(prices, stats, timezone = "Europe/Helsinki") {
   return {
-    markup: renderFull(prices, stats),
-    markup_half_horizontal: renderHalfHorizontal(prices, stats),
-    markup_half_vertical: renderHalfVertical(prices, stats),
-    markup_quadrant: renderQuadrant(prices, stats),
+    markup: renderFull(prices, stats, timezone),
+    markup_half_horizontal: renderHalfHorizontal(prices, stats, timezone),
+    markup_half_vertical: renderHalfVertical(prices, stats, timezone),
+    markup_quadrant: renderQuadrant(prices, stats, timezone),
   };
 }
 

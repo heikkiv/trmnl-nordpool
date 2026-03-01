@@ -4,10 +4,14 @@ const VAT_RATE = 1.255; // Finnish ALV 25.5%
 /**
  * Fetch day-ahead prices from Nord Pool for the given area and currency.
  * Returns an array of { hour, minute, price } objects where price is in cent/kWh incl. VAT.
+ * @param {string} area - The delivery area (e.g., "FI")
+ * @param {string} currency - The currency (e.g., "EUR")
+ * @param {string|null} date - The date in YYYY-MM-DD format, or null for today
+ * @param {string} timezone - IANA timezone name (e.g., "Europe/Helsinki")
  */
-async function fetchDayAheadPrices(area = "FI", currency = "EUR", date = null) {
+async function fetchDayAheadPrices(area = "FI", currency = "EUR", date = null, timezone = "Europe/Helsinki") {
   const targetDate = date || new Date().toISOString().slice(0, 10);
-  
+
   const params = new URLSearchParams({
     currency,
     market: "DayAhead",
@@ -23,10 +27,23 @@ async function fetchDayAheadPrices(area = "FI", currency = "EUR", date = null) {
   }
 
   const data = await res.json();
-  return parseResponse(data, area);
+  return parseResponse(data, area, timezone);
 }
 
-function parseResponse(data, area) {
+function getTimeInZone(date, timezone) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const hour = parseInt(parts.find((p) => p.type === "hour").value, 10);
+  const minute = parseInt(parts.find((p) => p.type === "minute").value, 10);
+  return { hour, minute };
+}
+
+function parseResponse(data, area, timezone = "Europe/Helsinki") {
   const entries = data.multiAreaEntries || [];
 
   return entries
@@ -38,10 +55,12 @@ function parseResponse(data, area) {
       // API returns EUR/MWh, convert to cent/kWh (÷10) and add VAT
       const price = Math.round((areaPrice / 10) * VAT_RATE * 1000) / 1000;
 
+      const { hour, minute } = getTimeInZone(start, timezone);
+
       return {
-        hour: start.getHours(),
-        minute: start.getMinutes(),
-        label: `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`,
+        hour,
+        minute,
+        label: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
         price,
         deliveryStart: entry.deliveryStart,
         deliveryEnd: entry.deliveryEnd,
@@ -71,13 +90,12 @@ function aggregateHourly(prices) {
     .sort((a, b) => a.hour - b.hour);
 }
 
-function computeStats(prices) {
+function computeStats(prices, timezone = "Europe/Helsinki") {
   if (!prices.length) return { min: 0, max: 0, avg: 0, current: 0 };
 
   const values = prices.map((p) => p.price);
   const now = new Date();
-  const currentHour = now.getHours();
-  const currentMinute = now.getMinutes();
+  const { hour: currentHour, minute: currentMinute } = getTimeInZone(now, timezone);
   const currentSlot = Math.floor(currentMinute / 15) * 15;
 
   const currentEntry = prices.find(
@@ -93,4 +111,4 @@ function computeStats(prices) {
   };
 }
 
-module.exports = { fetchDayAheadPrices, parseResponse, aggregateHourly, computeStats, VAT_RATE };
+module.exports = { fetchDayAheadPrices, parseResponse, aggregateHourly, computeStats, getTimeInZone, VAT_RATE };

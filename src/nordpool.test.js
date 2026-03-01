@@ -1,6 +1,9 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { parseResponse, aggregateHourly, computeStats, VAT_RATE } = require("./nordpool");
+const { parseResponse, aggregateHourly, computeStats, getTimeInZone, VAT_RATE } = require("./nordpool");
+
+// Use local timezone for tests
+const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 // Helper: build multiAreaEntries with 15-min resolution
 // hourlyPrices is { hour: [q0, q1, q2, q3] } in EUR/MWh
@@ -32,7 +35,7 @@ describe("parseResponse", () => {
       1: [200, 200, 200, 200],
     });
 
-    const prices = parseResponse(apiData, "FI");
+    const prices = parseResponse(apiData, "FI", LOCAL_TZ);
 
     assert.equal(prices.length, 8);
   });
@@ -42,7 +45,7 @@ describe("parseResponse", () => {
       5: [100, 100, 100, 100], // 100 EUR/MWh = 10 c/kWh ex-VAT = 12.55 incl VAT
     });
 
-    const prices = parseResponse(apiData, "FI");
+    const prices = parseResponse(apiData, "FI", LOCAL_TZ);
 
     assert.equal(prices[0].price, round3(10 * VAT_RATE));
   });
@@ -52,7 +55,7 @@ describe("parseResponse", () => {
       9: [120, 130, 140, 150],
     });
 
-    const prices = parseResponse(apiData, "FI");
+    const prices = parseResponse(apiData, "FI", LOCAL_TZ);
 
     assert.equal(prices[0].hour, 9);
     assert.equal(prices[0].minute, 0);
@@ -74,7 +77,7 @@ describe("parseResponse", () => {
       ],
     };
 
-    const prices = parseResponse(apiData, "FI");
+    const prices = parseResponse(apiData, "FI", LOCAL_TZ);
 
     assert.equal(prices[0].hour, 0);
     assert.equal(prices[0].minute, 0);
@@ -91,7 +94,7 @@ describe("parseResponse", () => {
       ],
     };
 
-    const prices = parseResponse(apiData, "FI");
+    const prices = parseResponse(apiData, "FI", LOCAL_TZ);
 
     assert.equal(prices.length, 1);
     assert.equal(prices[0].hour, 0);
@@ -105,19 +108,19 @@ describe("parseResponse", () => {
       ],
     };
 
-    const prices = parseResponse(apiData, "FI");
+    const prices = parseResponse(apiData, "FI", LOCAL_TZ);
 
     assert.equal(prices.length, 1);
     assert.equal(prices[0].hour, 1);
   });
 
   it("returns empty array for empty response", () => {
-    const prices = parseResponse({ multiAreaEntries: [] }, "FI");
+    const prices = parseResponse({ multiAreaEntries: [] }, "FI", LOCAL_TZ);
     assert.equal(prices.length, 0);
   });
 
   it("returns empty array for missing multiAreaEntries", () => {
-    const prices = parseResponse({}, "FI");
+    const prices = parseResponse({}, "FI", LOCAL_TZ);
     assert.equal(prices.length, 0);
   });
 
@@ -129,7 +132,7 @@ describe("parseResponse", () => {
       ],
     };
 
-    const prices = parseResponse(apiData, "FI");
+    const prices = parseResponse(apiData, "FI", LOCAL_TZ);
 
     assert.equal(prices[0].price, round3(12.186 * VAT_RATE));
   });
@@ -212,7 +215,7 @@ describe("computeStats", () => {
       { hour: 0, minute: 30, price: 15 },
     ];
 
-    const stats = computeStats(prices);
+    const stats = computeStats(prices, LOCAL_TZ);
 
     assert.equal(stats.min, 5);
     assert.equal(stats.max, 15);
@@ -221,26 +224,26 @@ describe("computeStats", () => {
 
   it("finds current price from the current 15-min slot", () => {
     const now = new Date();
-    const currentHour = now.getHours();
-    const currentSlot = Math.floor(now.getMinutes() / 15) * 15;
+    const { hour: currentHour, minute: currentMinute } = getTimeInZone(now, LOCAL_TZ);
+    const currentSlot = Math.floor(currentMinute / 15) * 15;
 
     const prices = [
       { hour: currentHour, minute: currentSlot, price: 15.168 },
       { hour: currentHour, minute: (currentSlot + 15) % 60, price: 20 },
     ];
 
-    const stats = computeStats(prices);
+    const stats = computeStats(prices, LOCAL_TZ);
 
     assert.equal(stats.current, 15.168);
     assert.equal(stats.currentHour, currentHour);
   });
 
   it("sets current to null if current slot is not in data", () => {
-    const currentHour = new Date().getHours();
+    const { hour: currentHour } = getTimeInZone(new Date(), LOCAL_TZ);
     const otherHour = (currentHour + 5) % 24;
     const prices = [{ hour: otherHour, minute: 0, price: 10 }];
 
-    const stats = computeStats(prices);
+    const stats = computeStats(prices, LOCAL_TZ);
 
     assert.equal(stats.current, null);
   });
@@ -257,7 +260,7 @@ describe("computeStats", () => {
   it("handles single price entry", () => {
     const prices = [{ hour: 0, minute: 0, price: 7.5 }];
 
-    const stats = computeStats(prices);
+    const stats = computeStats(prices, LOCAL_TZ);
 
     assert.equal(stats.min, 7.5);
     assert.equal(stats.max, 7.5);
@@ -271,7 +274,7 @@ describe("computeStats", () => {
       { hour: 2, minute: 0, price: 10 },
     ];
 
-    const stats = computeStats(prices);
+    const stats = computeStats(prices, LOCAL_TZ);
 
     assert.equal(stats.min, -2);
     assert.equal(stats.max, 10);
@@ -284,7 +287,7 @@ describe("computeStats", () => {
       { hour: 0, minute: 15, price: 10.5678 },
     ];
 
-    const stats = computeStats(prices);
+    const stats = computeStats(prices, LOCAL_TZ);
 
     assert.equal(stats.min, 10.123);
     assert.equal(stats.max, 10.568);
