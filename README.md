@@ -5,6 +5,7 @@ A self-hosted plugin for [TRMNL](https://trmnl.com) e-ink displays that shows da
 ## Features
 
 - Hourly bar chart of today's day-ahead prices
+- Bars shaded by price: white below 5 c/kWh, black above 25 c/kWh, gray in between
 - Current hour marked with ▼ above its bar
 - Min / Max / Average / Current price statistics
 - All four TRMNL layout sizes (full, half horizontal, half vertical, quadrant)
