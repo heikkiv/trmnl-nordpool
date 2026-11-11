@@ -7,18 +7,20 @@ const PLUGIN_ICON = "https://trmnl.com/images/plugins/trmnl--render.svg";
 function chartScript(chartId, prices, height, timezone = "Europe/Helsinki") {
   const { hour: currentHour } = getTimeInZone(new Date(), timezone);
 
-  const barColors = prices.map((p) =>
-    p.hour === currentHour ? "#000000" : {
-      pattern: {
-        image: "https://trmnl.com/images/grayscale/gray-5.png",
-        width: 12,
-        height: 12,
-      },
-    }
-  );
+  const barColors = prices.map(() => ({
+    pattern: {
+      image: "https://trmnl.com/images/grayscale/gray-5.png",
+      width: 12,
+      height: 12,
+    },
+  }));
 
   const categories = prices.map((p) => p.hourLabel);
-  const values = prices.map((p) => p.price);
+  const values = prices.map((p) =>
+    p.hour === currentHour
+      ? { y: p.price, dataLabels: { enabled: true, format: "\u25BC", style: { fontSize: "14px", color: "#000", textOutline: "none" } } }
+      : p.price
+  );
 
   return `
 <script>

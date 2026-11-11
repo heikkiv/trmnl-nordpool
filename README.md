@@ -5,7 +5,7 @@ A self-hosted plugin for [TRMNL](https://trmnl.com) e-ink displays that shows da
 ## Features
 
 - Hourly bar chart of today's day-ahead prices
-- Current hour highlighted in solid black
+- Current hour marked with ▼ above its bar
 - Min / Max / Average / Current price statistics
 - All four TRMNL layout sizes (full, half horizontal, half vertical, quadrant)
 - Browser preview endpoints for development
