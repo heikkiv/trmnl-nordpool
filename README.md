@@ -2,6 +2,8 @@
 
 A self-hosted plugin for [TRMNL](https://trmnl.com) e-ink displays that shows day-ahead electricity prices from [Nord Pool](https://www.nordpoolgroup.com/).
 
+![Full-size layout rendered with sample prices](docs/preview.png)
+
 ## Features
 
 - Hourly bar chart of today's day-ahead prices
