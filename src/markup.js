@@ -4,21 +4,39 @@ const TRMNL_CSS = "https://trmnl.com/css/latest/plugins.css";
 const TRMNL_JS = "https://trmnl.com/js/latest/plugins.js";
 const PLUGIN_ICON = "https://trmnl.com/images/plugins/trmnl--render.svg";
 
+// Bar shading thresholds in c/kWh (incl. VAT).
+const SHADE_LOW = 5;
+const SHADE_HIGH = 25;
+
+/**
+ * Pick a bar fill for a price: white below SHADE_LOW, black above SHADE_HIGH,
+ * and a TRMNL dither pattern in between (gray-7 lightest … gray-1 darkest).
+ */
+function barColor(price) {
+  if (price < SHADE_LOW) return "#FFFFFF";
+  if (price > SHADE_HIGH) return "#000000";
+  const t = (price - SHADE_LOW) / (SHADE_HIGH - SHADE_LOW);
+  const level = 7 - Math.round(t * 6);
+  return {
+    pattern: {
+      image: `https://trmnl.com/images/grayscale/gray-${level}.png`,
+      width: 12,
+      height: 12,
+    },
+  };
+}
+
 function chartScript(chartId, prices, height, timezone = "Europe/Helsinki") {
   const { hour: currentHour } = getTimeInZone(new Date(), timezone);
 
-  const barColors = prices.map((p) =>
-    p.hour === currentHour ? "#000000" : {
-      pattern: {
-        image: "https://trmnl.com/images/grayscale/gray-5.png",
-        width: 12,
-        height: 12,
-      },
-    }
-  );
+  const barColors = prices.map((p) => barColor(p.price));
 
   const categories = prices.map((p) => p.hourLabel);
-  const values = prices.map((p) => p.price);
+  const values = prices.map((p) =>
+    p.hour === currentHour
+      ? { y: p.price, dataLabels: { enabled: true, format: "\u25BC", style: { fontSize: "14px", color: "#000", textOutline: "none" } } }
+      : p.price
+  );
 
   return `
 <script>
@@ -109,6 +127,7 @@ function renderFull(prices, stats, timezone = "Europe/Helsinki") {
   <span class="instance" style="position: absolute; right: 24px;">${formatTimestamp(timezone)}</span>
 </div>
 <script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/pattern-fill.js"></script>
 ${chartScript(chartId, prices, 300, timezone)}`;
 }
 
@@ -130,6 +149,7 @@ function renderHalfHorizontal(prices, stats, timezone = "Europe/Helsinki") {
   <span class="instance" style="position: absolute; right: 24px;">${formatTimestamp(timezone)}</span>
 </div>
 <script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/pattern-fill.js"></script>
 ${chartScript(chartId, prices, 140, timezone)}`;
 }
 
@@ -149,6 +169,7 @@ function renderHalfVertical(prices, stats, timezone = "Europe/Helsinki") {
   <span class="instance" style="position: absolute; right: 24px;">${formatTimestamp(timezone)}</span>
 </div>
 <script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/pattern-fill.js"></script>
 ${chartScript(chartId, prices, 260, timezone)}`;
 }
 
@@ -211,4 +232,4 @@ function wrapForPreview(markup, viewClass = "view--full") {
 </html>`;
 }
 
-module.exports = { renderAllLayouts, wrapForPreview };
+module.exports = { renderAllLayouts, wrapForPreview, barColor };
